@@ -37,7 +37,7 @@ module.exports = (() => {
     const css = `
         .plugin-settings {
             padding: 10px;
-            color: white; /* Set text color to white */
+            color: white;
         }
 
         .plugin-settings label {
@@ -45,7 +45,7 @@ module.exports = (() => {
         }
 
         .plugin-settings input[type="text"] {
-            width: calc(100% - 20px); /* Adjust width to fit the screen */
+            width: calc(100% - 20px);
             padding: 8px;
             margin-bottom: 10px;
             box-sizing: border-box;
@@ -53,15 +53,15 @@ module.exports = (() => {
 
         .plugin-settings button {
             padding: 8px 16px;
-            background-color: #7289da; /* Set button background color to blue */
-            color: white; /* Set button text color to white */
+            background-color: #7289da;
+            color: white;
             border: none;
             cursor: pointer;
             transition: background-color 0.3s;
         }
 
         .plugin-settings button:hover {
-            background-color: #5f73bc; /* Darker blue on hover */
+            background-color: #5f73bc;
         }
     `;
 
@@ -83,7 +83,7 @@ module.exports = (() => {
                 }
             });
 
-            this.checkForUpdates(); // Check for updates on plugin load
+            this.checkForUpdates();
         }
         start() { }
         stop() { }
@@ -134,9 +134,9 @@ module.exports = (() => {
         const path = require('path');
 
         const PLUGIN_NAME = 'PythonRunner';
-        const SETTINGS_FILE = path.join(BdApi.Plugins.folder, 'settings.json'); // Adjust if necessary
-        const PYTHON_DIR = path.join(BdApi.Plugins.folder, 'bot'); // Adjust if necessary
-        const PYTHON_FILE = path.join(PYTHON_DIR, 'main.py'); // Adjust if necessary
+        const SETTINGS_FILE = path.join(BdApi.Plugins.folder, 'settings.json'); 
+        const PYTHON_DIR = path.join(BdApi.Plugins.folder, 'bot'); 
+        const PYTHON_FILE = path.join(PYTHON_DIR, 'main.py'); 
 
         return class PythonRunner extends Plugin {
             constructor() {
@@ -158,6 +158,14 @@ module.exports = (() => {
                 console.log(`${PLUGIN_NAME} has stopped`);
             }
 
+            ensurePythonDirectory() {
+                if (!fs.existsSync(PYTHON_DIR)) {
+                    fs.mkdirSync(PYTHON_DIR, { recursive: true });
+                    BdApi.Plugins.disable(config.info.name);
+                    BdApi.alert("Plugin Disabled", `${PLUGIN_NAME} created the 'bot' directory. Please place your 'main.py' script in this directory and re-enable the plugin.`);
+                }
+            }
+
             promptImportPythonScript() {
                 BdApi.showConfirmationModal("Python Script Missing", `The Python script at ${PYTHON_FILE} does not exist. Do you want to import it from a GitHub link?`, {
                     confirmText: "Import",
@@ -171,29 +179,29 @@ module.exports = (() => {
             }
 
             importPythonScript() {
-                BdApi.showConfirmationModal("Import Python Script", `Please enter the raw GitHub link to the Python script (e.g., https://raw.githubusercontent.com/username/repository/branch/filename.py):`, {
-                    confirmText: "Import",
-                    cancelText: "Cancel",
-                    onConfirm: async (url) => {
-                        try {
-                            const response = await fetch(url);
-                            if (!response.ok) {
-                                throw new Error(`Failed to fetch Python script (${response.status} ${response.statusText})`);
-                            }
-                            const scriptContent = await response.text();
-                            fs.writeFileSync(PYTHON_FILE, scriptContent);
-                            this.enablePlugin();
-                        } catch (error) {
-                            console.error(`Error importing Python script: ${error.message}`);
-                            BdApi.alert("Import Error", `Failed to import Python script: ${error.message}`);
-                            BdApi.Plugins.disable(config.info.name);
+                const inputURL = prompt("Enter the raw GitHub link to the Python script (e.g., https://raw.githubusercontent.com/username/repository/branch/filename.py):");
+                if (!inputURL) {
+                    BdApi.Plugins.disable(config.info.name);
+                    BdApi.alert("Plugin Disabled", `${PLUGIN_NAME} will remain disabled until the Python script is imported.`);
+                    return;
+                }
+
+                fetch(inputURL)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`Failed to fetch Python script (${response.status} ${response.statusText})`);
                         }
-                    },
-                    onCancel: () => {
+                        return response.text();
+                    })
+                    .then(scriptContent => {
+                        fs.writeFileSync(PYTHON_FILE, scriptContent);
+                        this.enablePlugin();
+                    })
+                    .catch(error => {
+                        console.error(`Error importing Python script: ${error.message}`);
+                        BdApi.alert("Import Error", `Failed to import Python script: ${error.message}`);
                         BdApi.Plugins.disable(config.info.name);
-                        BdApi.alert("Plugin Disabled", `${PLUGIN_NAME} will remain disabled until the Python script is imported.`);
-                    }
-                });
+                    });
             }
 
             enablePlugin() {
@@ -201,14 +209,6 @@ module.exports = (() => {
                 this.saveSettings();
                 console.log(`${PLUGIN_NAME} has started`);
                 // Add any additional startup logic here
-            }
-
-            selfDelete() {
-                const pluginFile = path.join(BdApi.Plugins.folder, config.info.name + '.plugin.js');
-                if (fs.existsSync(pluginFile)) {
-                    fs.unlinkSync(pluginFile);
-                    BdApi.Plugins.disable(config.info.name);
-                }
             }
 
             loadSettings() {
@@ -230,38 +230,29 @@ module.exports = (() => {
                 fs.writeFileSync(SETTINGS_FILE, JSON.stringify(this.settings, null, 2));
             }
 
-            ensurePythonDirectory() {
-                if (!fs.existsSync(PYTHON_DIR)) {
-                    try {
-                        fs.mkdirSync(PYTHON_DIR, { recursive: true });
-                    } catch (error) {
-                        console.error(`Error creating Python directory: ${error.message}`);
-                    }
-                }
-            }
-
             getSettingsPanel() {
                 const panel = document.createElement("div");
                 panel.className = "plugin-settings";
                 panel.innerHTML = `
                     <h3>Settings for ${PLUGIN_NAME}</h3>
                     <label for="pythonScriptLink">Enter Python Script Link:</label><br>
-                    <input type="text" id="pythonScriptLink" name="pythonScriptLink" value=""><br><br>
+                    <input type="text" id="pythonScriptLink" name="pythonScriptLink" style="width: calc(100% - 20px); padding: 8px; margin-bottom: 10px; box-sizing: border-box;"><br><br>
                 `;
 
                 const saveButton = document.createElement('button');
                 saveButton.textContent = 'Save';
+                saveButton.style.backgroundColor = '#7289da';
+                saveButton.style.color = 'white';
+                saveButton.style.padding = '8px 16px';
                 saveButton.onclick = () => {
-                    const linkInput = panel.querySelector('#pythonScriptLink');
-                    const link = linkInput.value.trim();
-                    if (link) {
-                        this.importPythonScript(link);
-                    } else {
-                        BdApi.alert("Error", "Please enter a valid GitHub raw link to the Python script.");
+                    const scriptLink = document.getElementById('pythonScriptLink').value;
+                    if (scriptLink) {
+                        this.importPythonScript(scriptLink);
                     }
                 };
                 panel.appendChild(saveButton);
 
+                BdApi.injectCSS(`${PLUGIN_NAME}-styles`, css);
                 return panel;
             }
         };
