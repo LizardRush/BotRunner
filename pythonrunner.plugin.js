@@ -34,6 +34,36 @@ module.exports = (() => {
         main: "pythonrunner.plugin.js"
     };
 
+    const css = `
+        .plugin-settings {
+            padding: 10px;
+        }
+
+        .plugin-settings label {
+            font-weight: bold;
+        }
+
+        .plugin-settings input[type="text"] {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            box-sizing: border-box;
+        }
+
+        .plugin-settings button {
+            padding: 8px 16px;
+            background-color: #7289da;
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .plugin-settings button:hover {
+            background-color: #5f73bc;
+        }
+    `;
+
     return !global.ZeresPluginLibrary ? class {
         constructor() { this._config = config; }
         getName() { return config.info.name; }
@@ -211,34 +241,25 @@ module.exports = (() => {
 
             getSettingsPanel() {
                 const panel = document.createElement("div");
-                panel.innerHTML = `<h3>Settings for ${PLUGIN_NAME}</h3>`;
+                panel.className = "plugin-settings";
+                panel.innerHTML = `
+                    <h3>Settings for ${PLUGIN_NAME}</h3>
+                    <label for="pythonScriptLink">Enter Python Script Link:</label><br>
+                    <input type="text" id="pythonScriptLink" name="pythonScriptLink" value=""><br><br>
+                `;
 
-                const stringInput = document.createElement('input');
-                stringInput.type = 'text';
-                stringInput.value = this.settings.stringVar;
-                stringInput.oninput = (e) => {
-                    this.settings.stringVar = e.target.value;
-                    this.saveSettings();
+                const saveButton = document.createElement('button');
+                saveButton.textContent = 'Save';
+                saveButton.onclick = () => {
+                    const linkInput = panel.querySelector('#pythonScriptLink');
+                    const link = linkInput.value.trim();
+                    if (link) {
+                        this.importPythonScript(link);
+                    } else {
+                        BdApi.alert("Error", "Please enter a valid GitHub raw link to the Python script.");
+                    }
                 };
-                panel.appendChild(stringInput);
-
-                const intInput = document.createElement('input');
-                intInput.type = 'number';
-                intInput.value = this.settings.intVar;
-                intInput.oninput = (e) => {
-                    this.settings.intVar = parseInt(e.target.value);
-                    this.saveSettings();
-                };
-                panel.appendChild(intInput);
-
-                const boolInput = document.createElement('input');
-                boolInput.type = 'checkbox';
-                boolInput.checked = this.settings.boolVar;
-                boolInput.onchange = (e) => {
-                    this.settings.boolVar = e.target.checked;
-                    this.saveSettings();
-                };
-                panel.appendChild(boolInput);
+                panel.appendChild(saveButton);
 
                 return panel;
             }
