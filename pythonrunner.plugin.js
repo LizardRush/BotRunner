@@ -2,7 +2,7 @@
  * @name PythonRunner
  * @description Runs a Python script on plugin start and provides settings to manage script parameters.
  * @version 1.0.0
- * @autor Lizard Rush
+ * @author Lizard Rush
  */
 
 module.exports = (() => {
@@ -19,7 +19,7 @@ module.exports = (() => {
             ],
             version: "1.0.0",
             description: "Runs a Python script on plugin start and provides settings to manage script parameters.",
-            github: "https://github.com/your-repo",
+            github: "https://github.com/LizardRush/BotRunner",
             github_raw: "https://raw.githubusercontent.com/your-repo/your-plugin/main/your-plugin.plugin.js"
         },
         changelog: [
@@ -61,8 +61,9 @@ module.exports = (() => {
         const { exec } = require('child_process');
 
         const PLUGIN_NAME = 'PythonRunner';
-        const SETTINGS_FILE = path.join(BdApi.Plugins.folder, PLUGIN_NAME, 'settings.json');
-        const PYTHON_FILE = path.join(BdApi.Plugins.folder, PLUGIN_NAME, 'plugins/bot/main.py');
+        const SETTINGS_FILE = path.join(__dirname, 'settings.json');
+        const PYTHON_DIR = path.join(__dirname, 'bot');
+        const PYTHON_FILE = path.join(PYTHON_DIR, 'main.py');
 
         return class PythonRunner extends Plugin {
             constructor() {
@@ -71,10 +72,26 @@ module.exports = (() => {
             }
 
             onStart() {
-                this.ensurePythonScript();
-                this.runPythonScript();
-                this.addRunButton();
-                console.log(`${PLUGIN_NAME} has started`);
+                if (!this.settings.confirmed) {
+                    BdApi.showConfirmationModal("This plugin may crash", "As this plugin is under development, do you wish to continue?", {
+                        confirmText: "Yes",
+                        cancelText: "No",
+                        onCancel: () => this.selfDelete(),
+                        onConfirm: () => {
+                            this.settings.confirmed = true;
+                            this.saveSettings();
+                            this.ensurePythonScript();
+                            this.runPythonScript();
+                            this.addRunButton();
+                            console.log(`${PLUGIN_NAME} has started`);
+                        }
+                    });
+                } else {
+                    this.ensurePythonScript();
+                    this.runPythonScript();
+                    this.addRunButton();
+                    console.log(`${PLUGIN_NAME} has started`);
+                }
             }
 
             onStop() {
@@ -82,12 +99,21 @@ module.exports = (() => {
                 console.log(`${PLUGIN_NAME} has stopped`);
             }
 
+            selfDelete() {
+                const pluginFile = path.join(BdApi.Plugins.folder, config.info.name + '.plugin.js');
+                if (fs.existsSync(pluginFile)) {
+                    fs.unlinkSync(pluginFile);
+                    BdApi.Plugins.disable(config.info.name);
+                }
+            }
+
             loadSettings() {
                 if (!fs.existsSync(SETTINGS_FILE)) {
                     const defaultSettings = {
                         stringVar: 'defaultString',
                         intVar: 0,
-                        boolVar: false
+                        boolVar: false,
+                        confirmed: false
                     };
                     fs.writeFileSync(SETTINGS_FILE, JSON.stringify(defaultSettings, null, 2));
                     return defaultSettings;
@@ -101,9 +127,8 @@ module.exports = (() => {
             }
 
             ensurePythonScript() {
-                const dir = path.dirname(PYTHON_FILE);
-                if (!fs.existsSync(dir)) {
-                    fs.mkdirSync(dir, { recursive: true });
+                if (!fs.existsSync(PYTHON_DIR)) {
+                    fs.mkdirSync(PYTHON_DIR, { recursive: true });
                 }
             }
 
