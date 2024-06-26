@@ -132,6 +132,7 @@ module.exports = (() => {
         const { Settings } = Library;
         const fs = require('fs');
         const path = require('path');
+        const { exec } = require('child_process');
 
         const PLUGIN_NAME = 'PythonRunner';
         const SETTINGS_FILE = path.join(BdApi.Plugins.folder, 'settings.json');
@@ -150,7 +151,7 @@ module.exports = (() => {
                 if (!fs.existsSync(PYTHON_FILE)) {
                     this.disablePluginWithToast("Python script not found. Disabling the plugin.");
                 } else {
-                    this.enablePlugin();
+                    this.runPythonScript();
                 }
             }
 
@@ -168,13 +169,6 @@ module.exports = (() => {
             disablePluginWithToast(message) {
                 BdApi.Plugins.disable(config.info.name);
                 BdApi.showToast(message, { type: "error" });
-            }
-
-            enablePlugin() {
-                this.settings.confirmed = true;
-                this.saveSettings();
-                console.log(`${PLUGIN_NAME} has started`);
-                // Add any additional startup logic here
             }
 
             loadSettings() {
@@ -196,6 +190,23 @@ module.exports = (() => {
                 fs.writeFileSync(SETTINGS_FILE, JSON.stringify(this.settings, null, 2));
             }
 
+            runPythonScript() {
+                if (fs.existsSync(PYTHON_FILE)) {
+                    exec(`python "${PYTHON_FILE}"`, (error, stdout, stderr) => {
+                        if (error) {
+                            console.error(`Error executing Python script: ${error.message}`);
+                            return;
+                        }
+                        console.log(`Python script output: ${stdout}`);
+                        if (stderr) {
+                            console.error(`Python script error: ${stderr}`);
+                        }
+                    });
+                } else {
+                    this.disablePluginWithToast(`Python script at ${PYTHON_FILE} does not exist. Disabling plugin.`);
+                }
+            }
+
             getSettingsPanel() {
                 const panel = document.createElement("div");
                 panel.className = "plugin-settings";
@@ -205,21 +216,34 @@ module.exports = (() => {
                     <input type="text" id="pythonScriptLink" name="pythonScriptLink" style="width: calc(100% - 20px); padding: 8px; margin-bottom: 10px; box-sizing: border-box;"><br><br>
                 `;
 
-                const saveButton = document.createElement('button');
-                saveButton.textContent = 'Save';
-                saveButton.style.backgroundColor = '#7289da';
-                saveButton.style.color = 'white';
-                saveButton.style.padding = '8px 16px';
-                saveButton.onclick = () => {
-                    const scriptLink = document.getElementById('pythonScriptLink').value;
-                    if (scriptLink) {
-                        this.importPythonScript(scriptLink);
-                    }
+                const importButton = document.createElement('button');
+                importButton.innerText = "Import Python Script";
+                importButton.onclick = () => {
+                    const url = document.getElementById("pythonScriptLink").value;
+                    this.importPythonScript(url);
                 };
-                panel.appendChild(saveButton);
+                panel.appendChild(importButton);
 
-                BdApi.injectCSS(`${PLUGIN_NAME}-styles`, css);
+                BdApi.injectCSS(config.info.name, css);
                 return panel;
+            }
+
+            importPythonScript(url) {
+                require('request').get(url, (err, res, body) => {
+                    if (err) {
+                        BdApi.showToast(`Failed to download Python script: ${err.message}`, { type: "error" });
+                        return;
+                    }
+
+                    fs.writeFile(PYTHON_FILE, body, (err) => {
+                        if (err) {
+                            BdApi.showToast(`Failed to save Python script: ${err.message}`, { type: "error" });
+                            return;
+                        }
+
+                        BdApi.showToast('Python script imported successfully. Please restart the plugin.', { type: "success" });
+                    });
+                });
             }
         };
     })(global.ZeresPluginLibrary.buildPlugin(config));
