@@ -51,9 +51,52 @@ module.exports = (() => {
                     });
                 }
             });
+
+            this.checkForUpdates(); // Check for updates on plugin load
         }
         start() { }
         stop() { }
+
+        checkForUpdates() {
+            const currentVersion = config.info.version;
+            const githubRawURL = config.info.github_raw;
+
+            require("request").get(githubRawURL, (err, res, body) => {
+                if (err) {
+                    console.error(`Error checking for updates: ${err.message}`);
+                    return;
+                }
+
+                try {
+                    const remoteConfig = JSON.parse(body);
+                    const latestVersion = remoteConfig.info.version;
+
+                    if (latestVersion && latestVersion !== currentVersion) {
+                        BdApi.showConfirmationModal("New Version Available", `A new version (${latestVersion}) of ${config.info.name} is available. Do you want to update?`, {
+                            confirmText: "Update Now",
+                            cancelText: "Later",
+                            onConfirm: () => this.updatePlugin(remoteConfig)
+                        });
+                    }
+                } catch (error) {
+                    console.error(`Error parsing remote config: ${error.message}`);
+                }
+            });
+        }
+
+        updatePlugin(remoteConfig) {
+            const pluginFile = path.join(BdApi.Plugins.folder, config.info.name + '.plugin.js');
+            const updatedScript = remoteConfig.raw;
+
+            require("fs").writeFile(pluginFile, updatedScript, (err) => {
+                if (err) {
+                    console.error(`Error updating plugin: ${err.message}`);
+                    return;
+                }
+
+                BdApi.alert("Plugin Updated", `${config.info.name} has been updated to version ${remoteConfig.info.version}. Please restart Discord to apply the changes.`);
+            });
+        }
     } : (([Plugin, Library]) => {
         const { Patcher, Settings } = Library;
         const fs = require('fs');
@@ -72,6 +115,7 @@ module.exports = (() => {
             }
 
             onStart() {
+                this.ensurePythonDirectory();
                 if (!fs.existsSync(PYTHON_FILE)) {
                     BdApi.alert('Python Script Missing', `The Python script at ${PYTHON_FILE} does not exist. Disabling plugin until the script is added.`);
                     BdApi.Plugins.disable(config.info.name);
@@ -86,13 +130,11 @@ module.exports = (() => {
                         onConfirm: () => {
                             this.settings.confirmed = true;
                             this.saveSettings();
-                            this.ensurePythonScript();
                             this.runPythonScript();
                             console.log(`${PLUGIN_NAME} has started`);
                         }
                     });
                 } else {
-                    this.ensurePythonScript();
                     this.runPythonScript();
                     console.log(`${PLUGIN_NAME} has started`);
                 }
@@ -130,9 +172,13 @@ module.exports = (() => {
                 fs.writeFileSync(SETTINGS_FILE, JSON.stringify(this.settings, null, 2));
             }
 
-            ensurePythonScript() {
+            ensurePythonDirectory() {
                 if (!fs.existsSync(PYTHON_DIR)) {
-                    fs.mkdirSync(PYTHON_DIR, { recursive: true });
+                    try {
+                        fs.mkdirSync(PYTHON_DIR, { recursive: true });
+                    } catch (error) {
+                        console.error(`Error creating Python directory: ${error.message}`);
+                    }
                 }
             }
 
