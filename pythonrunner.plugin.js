@@ -117,31 +117,59 @@ module.exports = (() => {
                 this.ensurePythonDirectory();
 
                 if (!fs.existsSync(PYTHON_FILE)) {
-                    BdApi.alert('Python Script Missing', `The Python script at ${PYTHON_FILE} does not exist. Disabling plugin until the script is added.`);
-                    BdApi.Plugins.disable(config.info.name);
-                    return;
-                }
-
-                if (!this.settings.confirmed) {
-                    BdApi.showConfirmationModal("This plugin may crash", "As this plugin is under development, do you wish to continue?", {
-                        confirmText: "Yes",
-                        cancelText: "No",
-                        onCancel: () => this.selfDelete(),
-                        onConfirm: () => {
-                            this.settings.confirmed = true;
-                            this.saveSettings();
-                            this.runPythonScript();
-                            console.log(`${PLUGIN_NAME} has started`);
-                        }
-                    });
+                    this.promptImportPythonScript();
                 } else {
-                    this.runPythonScript();
-                    console.log(`${PLUGIN_NAME} has started`);
+                    this.enablePlugin();
                 }
             }
 
             onStop() {
                 console.log(`${PLUGIN_NAME} has stopped`);
+            }
+
+            promptImportPythonScript() {
+                BdApi.showConfirmationModal("Python Script Missing", `The Python script at ${PYTHON_FILE} does not exist. Do you want to import it from a GitHub link?`, {
+                    confirmText: "Import",
+                    cancelText: "Cancel",
+                    onConfirm: () => this.importPythonScript(),
+                    onCancel: () => {
+                        BdApi.Plugins.disable(config.info.name);
+                        BdApi.alert("Plugin Disabled", `${PLUGIN_NAME} will remain disabled until the Python script is imported.`);
+                    }
+                });
+            }
+
+            importPythonScript() {
+                BdApi.showConfirmationModal("Import Python Script", `Please enter the raw GitHub link to the Python script (e.g., https://raw.githubusercontent.com/username/repository/branch/filename.py):`, {
+                    confirmText: "Import",
+                    cancelText: "Cancel",
+                    onConfirm: async (url) => {
+                        try {
+                            const response = await fetch(url);
+                            if (!response.ok) {
+                                throw new Error(`Failed to fetch Python script (${response.status} ${response.statusText})`);
+                            }
+                            const scriptContent = await response.text();
+                            fs.writeFileSync(PYTHON_FILE, scriptContent);
+                            this.enablePlugin();
+                        } catch (error) {
+                            console.error(`Error importing Python script: ${error.message}`);
+                            BdApi.alert("Import Error", `Failed to import Python script: ${error.message}`);
+                            BdApi.Plugins.disable(config.info.name);
+                        }
+                    },
+                    onCancel: () => {
+                        BdApi.Plugins.disable(config.info.name);
+                        BdApi.alert("Plugin Disabled", `${PLUGIN_NAME} will remain disabled until the Python script is imported.`);
+                    }
+                });
+            }
+
+            enablePlugin() {
+                this.settings.confirmed = true;
+                this.saveSettings();
+                console.log(`${PLUGIN_NAME} has started`);
+                // Add any additional startup logic here
             }
 
             selfDelete() {
@@ -179,24 +207,6 @@ module.exports = (() => {
                         console.error(`Error creating Python directory: ${error.message}`);
                     }
                 }
-            }
-
-            runPythonScript() {
-                if (fs.existsSync(PYTHON_FILE)) {
-                    const code = fs.readFileSync(PYTHON_FILE, 'utf-8');
-                    const replacedCode = this.replaceVariables(code);
-                    // Execute Python script (not implemented due to BetterDiscord limitations)
-                    BdApi.alert('Python Execution', 'Python script execution is not supported in BetterDiscord plugins.');
-                } else {
-                    BdApi.alert('Python Script Missing', `The Python script at ${PYTHON_FILE} does not exist.`);
-                }
-            }
-
-            replaceVariables(code) {
-                return code
-                    .replace(/{{bd\.string\.(\w+)}}/g, (_, key) => `"${this.settings[key]}"`)
-                    .replace(/{{bd\.int\.(\w+)}}/g, (_, key) => this.settings[key])
-                    .replace(/{{bd\.bool\.(\w+)}}/g, (_, key) => this.settings[key]);
             }
 
             getSettingsPanel() {
