@@ -19,8 +19,8 @@ module.exports = (() => {
             ],
             version: "1.0.0",
             description: "Runs a Python script on plugin start and provides settings to manage script parameters.",
-            github: "https://github.com/LizardRush/BotRunner",
-            github_raw: "https://raw.githubusercontent.com/LizardRush/BotRunner/main/pythonrunner.plugin.js"
+            github: "https://github.com/LizardRush/PythonRunner",
+            github_raw: "https://raw.githubusercontent.com/LizardRush/PythonRunner/main/pythonrunner.plugin.js"
         },
         changelog: [
             {
@@ -85,7 +85,7 @@ module.exports = (() => {
         }
 
         updatePlugin(remoteConfig) {
-            const pluginFile = path.join(BdApi.Plugins.folder, config.info.name + '.plugin.js');
+            const pluginFile = require("path").join(BdApi.Plugins.folder, config.info.name + '.plugin.js');
             const updatedScript = remoteConfig.raw;
 
             require("fs").writeFile(pluginFile, updatedScript, (err) => {
@@ -98,14 +98,13 @@ module.exports = (() => {
             });
         }
     } : (([Plugin, Library]) => {
-        const { Patcher, Settings } = Library;
+        const { Settings } = Library;
         const fs = require('fs');
         const path = require('path');
-        const { exec } = require('child_process');
 
         const PLUGIN_NAME = 'PythonRunner';
-        const SETTINGS_FILE = path.join(__dirname, 'settings.json'); // Adjust if necessary
-        const PYTHON_DIR = path.join(__dirname, 'bot'); // Adjust if necessary
+        const SETTINGS_FILE = path.join(BdApi.Plugins.folder, 'settings.json'); // Adjust if necessary
+        const PYTHON_DIR = path.join(BdApi.Plugins.folder, 'bot'); // Adjust if necessary
         const PYTHON_FILE = path.join(PYTHON_DIR, 'main.py'); // Adjust if necessary
 
         return class PythonRunner extends Plugin {
@@ -116,6 +115,7 @@ module.exports = (() => {
 
             onStart() {
                 this.ensurePythonDirectory();
+
                 if (!fs.existsSync(PYTHON_FILE)) {
                     BdApi.alert('Python Script Missing', `The Python script at ${PYTHON_FILE} does not exist. Disabling plugin until the script is added.`);
                     BdApi.Plugins.disable(config.info.name);
@@ -141,7 +141,6 @@ module.exports = (() => {
             }
 
             onStop() {
-                Patcher.unpatchAll(PLUGIN_NAME);
                 console.log(`${PLUGIN_NAME} has stopped`);
             }
 
@@ -186,17 +185,8 @@ module.exports = (() => {
                 if (fs.existsSync(PYTHON_FILE)) {
                     const code = fs.readFileSync(PYTHON_FILE, 'utf-8');
                     const replacedCode = this.replaceVariables(code);
-                    exec(`python -c "${replacedCode.replace(/"/g, '\\"')}"`, (error, stdout, stderr) => {
-                        if (error) {
-                            console.error(`Error executing Python script: ${error.message}`);
-                            return;
-                        }
-                        if (stderr) {
-                            console.error(`Python script stderr: ${stderr}`);
-                            return;
-                        }
-                        console.log(`Python script output: ${stdout}`);
-                    });
+                    // Execute Python script (not implemented due to BetterDiscord limitations)
+                    BdApi.alert('Python Execution', 'Python script execution is not supported in BetterDiscord plugins.');
                 } else {
                     BdApi.alert('Python Script Missing', `The Python script at ${PYTHON_FILE} does not exist.`);
                 }
@@ -239,11 +229,6 @@ module.exports = (() => {
                     this.saveSettings();
                 };
                 panel.appendChild(boolInput);
-
-                const runButton = document.createElement('button');
-                runButton.innerText = 'Run';
-                runButton.onclick = () => this.runPythonScript();
-                panel.appendChild(runButton);
 
                 return panel;
             }
