@@ -61,9 +61,9 @@ module.exports = (() => {
         const { exec } = require('child_process');
 
         const PLUGIN_NAME = 'PythonRunner';
-        const SETTINGS_FILE = path.join(__dirname, 'settings.json');
-        const PYTHON_DIR = path.join(__dirname, 'bot');
-        const PYTHON_FILE = path.join(PYTHON_DIR, 'main.py');
+        const SETTINGS_FILE = path.join(__dirname, 'settings.json'); // Adjust if necessary
+        const PYTHON_DIR = path.join(__dirname, 'bot'); // Adjust if necessary
+        const PYTHON_FILE = path.join(PYTHON_DIR, 'main.py'); // Adjust if necessary
 
         return class PythonRunner extends Plugin {
             constructor() {
