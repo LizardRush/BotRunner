@@ -37,6 +37,7 @@ module.exports = (() => {
     const css = `
         .plugin-settings {
             padding: 10px;
+            color: white; /* Set text color to white */
         }
 
         .plugin-settings label {
@@ -44,7 +45,7 @@ module.exports = (() => {
         }
 
         .plugin-settings input[type="text"] {
-            width: 100%;
+            width: calc(100% - 20px); /* Adjust width to fit the screen */
             padding: 8px;
             margin-bottom: 10px;
             box-sizing: border-box;
@@ -52,15 +53,15 @@ module.exports = (() => {
 
         .plugin-settings button {
             padding: 8px 16px;
-            background-color: #7289da;
-            color: white;
+            background-color: #7289da; /* Set button background color to blue */
+            color: white; /* Set button text color to white */
             border: none;
             cursor: pointer;
             transition: background-color 0.3s;
         }
 
         .plugin-settings button:hover {
-            background-color: #5f73bc;
+            background-color: #5f73bc; /* Darker blue on hover */
         }
     `;
 
