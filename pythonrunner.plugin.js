@@ -20,7 +20,7 @@ module.exports = (() => {
             version: "1.0.0",
             description: "Runs a Python script on plugin start and provides settings to manage script parameters.",
             github: "https://github.com/LizardRush/BotRunner",
-            github_raw: "https://raw.githubusercontent.com/your-repo/your-plugin/main/your-plugin.plugin.js"
+            github_raw: "https://raw.githubusercontent.com/LizardRush/BotRunner/main/pythonrunner.plugin.js"
         },
         changelog: [
             {
