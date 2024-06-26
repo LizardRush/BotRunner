@@ -134,9 +134,9 @@ module.exports = (() => {
         const path = require('path');
 
         const PLUGIN_NAME = 'PythonRunner';
-        const SETTINGS_FILE = path.join(BdApi.Plugins.folder, 'settings.json'); 
-        const PYTHON_DIR = path.join(BdApi.Plugins.folder, 'bot'); 
-        const PYTHON_FILE = path.join(PYTHON_DIR, 'main.py'); 
+        const SETTINGS_FILE = path.join(BdApi.Plugins.folder, 'settings.json');
+        const PYTHON_DIR = path.join(BdApi.Plugins.folder, 'bot');
+        const PYTHON_FILE = path.join(PYTHON_DIR, 'main.py');
 
         return class PythonRunner extends Plugin {
             constructor() {
@@ -148,7 +148,7 @@ module.exports = (() => {
                 this.ensurePythonDirectory();
 
                 if (!fs.existsSync(PYTHON_FILE)) {
-                    this.promptImportPythonScript();
+                    this.disablePluginWithToast("Python script not found. Disabling the plugin.");
                 } else {
                     this.enablePlugin();
                 }
@@ -161,47 +161,13 @@ module.exports = (() => {
             ensurePythonDirectory() {
                 if (!fs.existsSync(PYTHON_DIR)) {
                     fs.mkdirSync(PYTHON_DIR, { recursive: true });
-                    BdApi.Plugins.disable(config.info.name);
-                    BdApi.alert("Plugin Disabled", `${PLUGIN_NAME} created the 'bot' directory. Please place your 'main.py' script in this directory and re-enable the plugin.`);
+                    this.disablePluginWithToast("Created 'bot' directory. Please add 'main.py' and re-enable the plugin.");
                 }
             }
 
-            promptImportPythonScript() {
-                BdApi.showConfirmationModal("Python Script Missing", `The Python script at ${PYTHON_FILE} does not exist. Do you want to import it from a GitHub link?`, {
-                    confirmText: "Import",
-                    cancelText: "Cancel",
-                    onConfirm: () => this.importPythonScript(),
-                    onCancel: () => {
-                        BdApi.Plugins.disable(config.info.name);
-                        BdApi.alert("Plugin Disabled", `${PLUGIN_NAME} will remain disabled until the Python script is imported.`);
-                    }
-                });
-            }
-
-            importPythonScript() {
-                const inputURL = prompt("Enter the raw GitHub link to the Python script (e.g., https://raw.githubusercontent.com/username/repository/branch/filename.py):");
-                if (!inputURL) {
-                    BdApi.Plugins.disable(config.info.name);
-                    BdApi.alert("Plugin Disabled", `${PLUGIN_NAME} will remain disabled until the Python script is imported.`);
-                    return;
-                }
-
-                fetch(inputURL)
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error(`Failed to fetch Python script (${response.status} ${response.statusText})`);
-                        }
-                        return response.text();
-                    })
-                    .then(scriptContent => {
-                        fs.writeFileSync(PYTHON_FILE, scriptContent);
-                        this.enablePlugin();
-                    })
-                    .catch(error => {
-                        console.error(`Error importing Python script: ${error.message}`);
-                        BdApi.alert("Import Error", `Failed to import Python script: ${error.message}`);
-                        BdApi.Plugins.disable(config.info.name);
-                    });
+            disablePluginWithToast(message) {
+                BdApi.Plugins.disable(config.info.name);
+                BdApi.showToast(message, { type: "error" });
             }
 
             enablePlugin() {
