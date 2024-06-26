@@ -72,6 +72,12 @@ module.exports = (() => {
             }
 
             onStart() {
+                if (!fs.existsSync(PYTHON_FILE)) {
+                    BdApi.alert('Python Script Missing', `The Python script at ${PYTHON_FILE} does not exist. Disabling plugin until the script is added.`);
+                    BdApi.Plugins.disable(config.info.name);
+                    return;
+                }
+
                 if (!this.settings.confirmed) {
                     BdApi.showConfirmationModal("This plugin may crash", "As this plugin is under development, do you wish to continue?", {
                         confirmText: "Yes",
