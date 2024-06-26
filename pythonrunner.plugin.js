@@ -31,7 +31,7 @@ module.exports = (() => {
                 ]
             }
         ],
-        main: "your-plugin.plugin.js"
+        main: "pythonrunner.plugin.js"
     };
 
     return !global.ZeresPluginLibrary ? class {
@@ -55,7 +55,7 @@ module.exports = (() => {
         start() { }
         stop() { }
     } : (([Plugin, Library]) => {
-        const { WebpackModules, Patcher, Settings } = Library;
+        const { Patcher, Settings } = Library;
         const fs = require('fs');
         const path = require('path');
         const { exec } = require('child_process');
@@ -82,14 +82,12 @@ module.exports = (() => {
                             this.saveSettings();
                             this.ensurePythonScript();
                             this.runPythonScript();
-                            this.addRunButton();
                             console.log(`${PLUGIN_NAME} has started`);
                         }
                     });
                 } else {
                     this.ensurePythonScript();
                     this.runPythonScript();
-                    this.addRunButton();
                     console.log(`${PLUGIN_NAME} has started`);
                 }
             }
@@ -136,7 +134,17 @@ module.exports = (() => {
                 if (fs.existsSync(PYTHON_FILE)) {
                     const code = fs.readFileSync(PYTHON_FILE, 'utf-8');
                     const replacedCode = this.replaceVariables(code);
-                    exec(`python -c "${replacedCode.replace(/"/g, '\\"')}"`);
+                    exec(`python -c "${replacedCode.replace(/"/g, '\\"')}"`, (error, stdout, stderr) => {
+                        if (error) {
+                            console.error(`Error executing Python script: ${error.message}`);
+                            return;
+                        }
+                        if (stderr) {
+                            console.error(`Python script stderr: ${stderr}`);
+                            return;
+                        }
+                        console.log(`Python script output: ${stdout}`);
+                    });
                 } else {
                     BdApi.alert('Python Script Missing', `The Python script at ${PYTHON_FILE} does not exist.`);
                 }
@@ -147,14 +155,6 @@ module.exports = (() => {
                     .replace(/{{bd\.string\.(\w+)}}/g, (_, key) => `"${this.settings[key]}"`)
                     .replace(/{{bd\.int\.(\w+)}}/g, (_, key) => this.settings[key])
                     .replace(/{{bd\.bool\.(\w+)}}/g, (_, key) => this.settings[key]);
-            }
-
-            addRunButton() {
-                const panel = this.getSettingsPanel();
-                const runButton = document.createElement('button');
-                runButton.innerText = 'Run';
-                runButton.onclick = () => this.runPythonScript();
-                panel.appendChild(runButton);
             }
 
             getSettingsPanel() {
@@ -187,6 +187,11 @@ module.exports = (() => {
                     this.saveSettings();
                 };
                 panel.appendChild(boolInput);
+
+                const runButton = document.createElement('button');
+                runButton.innerText = 'Run';
+                runButton.onclick = () => this.runPythonScript();
+                panel.appendChild(runButton);
 
                 return panel;
             }
